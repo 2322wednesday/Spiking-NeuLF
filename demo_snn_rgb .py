@@ -24,15 +24,16 @@ import argparse
 import os
 import sys
 sys.path.insert(0, os.path.abspath('./'))
-from src.snn_model import Spiking_NeuLF_snn, Spiking_NeuLF_ann
-from utils import rm_folder, rm_folder_keep
+from NeuLF.src.model import Nerf4D_relu_ps
+from snn_model import Spiking_NeuLF_snn, Spiking_NeuLF_ann
+from NeuLF.src.utils import rm_folder, rm_folder_keep
 import cv2,glob
 import torchvision
 import math
-from src.cam_view import rayPlaneInter
+from NeuLF.src.cam_view import rayPlaneInter
 from tqdm import tqdm
-from utils import eval_uvst
-from src.utils import get_rays_np
+from NeuLF.src.utils import eval_uvst
+from NeuLF.src.utils import get_rays_np
 import imageio
 from sklearn.neighbors import NearestNeighbors
 
@@ -45,14 +46,17 @@ parser.add_argument('--mlp_depth', type=int, default = 8)
 parser.add_argument('--scale', type=int, default = 4)
 parser.add_argument('--img_form',type=str, default = '.png',help = 'exp name')
 
-class demo_rgb():
+class demo_SN_rgb():
     def __init__(self,args):
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpuid
         print('>>> Using GPU: {}'.format(args.gpuid))
 
         # data_root
         data_root = args.data_dir
-        self.model = Nerf4D_relu_ps(D=args.mlp_depth,depth_branch=False)
+        self.base_model = Nerf4D_relu_ps()
+        self.base_model.eval()
+        self.snn_model = Spiking_NeuLF_snn(D=args.mlp_depth)
+        self.ann_model = Spiking_NeuLF_ann(D=args.mlp_depth)
         data_img = os.path.join(args.data_dir,'images_{}'.format(args.scale)) 
 
         self.exp = 'Exp_'+args.exp_name
@@ -61,9 +65,10 @@ class demo_rgb():
         self.img_folder_test = 'demo_result_rgb/'+self.exp+'/'
         rm_folder(self.img_folder_test)
 
-        self.load_check_points()
+        self.load_check_points_Base2Spiking_NeuLF_weights(self.base_model,self.snn_model,self.ann_model)
 
-        self.model = self.model.cuda()
+        self.snn_model = self.snn_model.cuda()
+        self.ann_model = self.ann_model.cuda()
 
         # height and width
         image_paths = glob.glob(f"{data_img}/*"+args.img_form)
@@ -124,7 +129,7 @@ class demo_rgb():
                 current_T = np.expand_dims(current_T,axis=0)
 
                 distance,neighbor_cam_index = self.knn.kneighbors(current_T)
-                neighbor_cam_index = np.asscalar(neighbor_cam_index)
+                neighbor_cam_index = neighbor_cam_index.item()
 
                 ray_o = np.reshape(ray_o,(-1,3))
                 ray_d = np.reshape(ray_d,(-1,3))
@@ -142,7 +147,7 @@ class demo_rgb():
 
                 data_uvst = (data_uvst - self.uvst_min)/(self.uvst_max - self.uvst_min) * 2 -1.0
                 
-                view_unit = self.render_sample_img(self.model,data_uvst,self.w,self.h,None,None,False)
+                view_unit = self.render_sample_img(self.snn_model,self.ann_model,data_uvst,self.w,self.h,None,None,False)
                 
                 # view_unit_near = 0
                 view_unit_near = self.color_imgs[neighbor_cam_index,:,:,:].copy()
@@ -166,12 +171,13 @@ class demo_rgb():
             imageio.mimsave(savename+".gif", view_group,fps=30)
             imageio.mimsave(savename+"_near.gif", view_group_near,fps=30)
 
-    def render_sample_img(self,model,uvst, w, h, save_path=None,save_depth_path=None,save_flag=True):
+    def render_sample_img(self,snn_model,ann_model,uvst, w, h, save_path=None,save_depth_path=None,save_flag=True):
          with torch.no_grad():
         
             uvst = torch.from_numpy(uvst.astype(np.float32)).cuda()
 
-            pred_color = model(uvst)
+            snn_output = snn_model(uvst)
+            pred_color = ann_model(snn_output)
   
             pred_img = pred_color.reshape((h,w,3)).permute((2,0,1))
 
@@ -181,7 +187,7 @@ class demo_rgb():
             return pred_color.reshape((h,w,3)) #,pred_depth_norm.reshape((h,w,1))
 
         
-    def load_check_points(self):
+    def load_check_points_Base2Spiking_NeuLF_weights(self, base_model, snn_model, ann_model):
         ckpt_paths = glob.glob(self.checkpoints+"*.pth")
         self.iter=0
         if len(ckpt_paths) > 0:
@@ -195,13 +201,23 @@ class demo_rgb():
         
         ckpt = torch.load(ckpt_name)
     
-        self.model.load_state_dict(ckpt)
+        base_model.load_state_dict(ckpt)
+        snn_model.input_net.load_state_dict(base_model.input_net.state_dict())
+        snn_model.feature_linear.load_state_dict(base_model.feature_linear.state_dict())
+
+        for i in range(len(base_model.pts_linears)):
+            snn_model.pts_linears[i].load_state_dict(base_model.pts_linears[i].state_dict())
+
+        for i in range(len(base_model.views_linears)):
+            snn_model.views_linears[i].load_state_dict(base_model.views_linears[i].state_dict())
+
+        ann_model.rgb_linear.load_state_dict(base_model.rgb_linear.state_dict())
         
 
 if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    unit = demo_rgb(args)
+    unit = demo_SN_rgb(args)
     unit.gen_pose_llff()
  

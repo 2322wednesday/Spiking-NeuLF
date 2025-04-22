@@ -133,3 +133,16 @@ def encodeSpike(self, data, label, spike_duration, time_interval, mode):
         self.label = label
         self.data_num = len(data)
         self.total_duration = (self.spike_duration+self.time_interval)*self.data_num*b2.second
+
+
+def Base2Spiking_NeuLF_weights(base_model, snn_model_in_SN, ann_model_in_SN):
+    snn_model_in_SN.input_net.load_state_dict(base_model.input_net.state_dict())
+    snn_model_in_SN.feature_linear.load_state_dict(base_model.feature_linear.state_dict())
+    
+    for i in range(len(base_model.pts_linears)):
+        snn_model_in_SN.pts_linears[i].load_state_dict(base_model.pts_linears[i].state_dict())
+
+    for i in range(len(base_model.views_linears)):
+        snn_model_in_SN.views_linears[i].load_state_dict(base_model.views_linears[i].state_dict())
+    
+    ann_model_in_SN.rgb_linear.load_state_dict(base_model.rgb_linear.state_dict())

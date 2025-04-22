@@ -112,5 +112,15 @@ class Spiking_NeuLF_snn(nn.Module):
         return h
 
 class Spiking_NeuLF_ann(nn.Module):
-    def __init__(self):
+    def __init__(self, W):
         super(Spiking_NeuLF_ann, self).__init__()
+
+        self.W = W
+
+        self.rgb_linear = nn.Linear(W//2, 3)
+        self.rgb_act   = nn.Sigmoid()
+    
+    def forward(self, h):
+
+        rgb = self.rgb_linear(h)
+        rgb = self.rgb_act(rgb)
