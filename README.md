@@ -1,0 +1,2 @@
+# Spiking-NeuLF
+NeuLF (Neural 4D Light Field) is a method that achieves state-of-the-art results for synthesizing novel views of complex scenes.[Github](https://github.com/oppo-us-research/NeuLF?tab=readme-ov-file)
