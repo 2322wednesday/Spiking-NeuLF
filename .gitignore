@@ -3,3 +3,4 @@ __pycache__/
 .env
 .vscode/
 snn_neulf.ipynb
+snn_utils.py
