@@ -92,7 +92,7 @@ class train():
         self.norm_fac = args.norm_fac
         self.st_norm_fac = args.st_norm_fac
 
-        self.exp = 'Exp_'+args.exp_name
+        self.exp = 'Exp_'+args.exp_name+'_0to1'
 
         # tensorboard writer
         self.summary_writer = SummaryWriter("src/tensorboard/"+self.exp)
