@@ -5,3 +5,7 @@ __pycache__/
 snn_neulf.ipynb
 snn_utils.py
 NeuLF/
+dataset/*
+demo_result_rgb/
+result/
+checkout_weight.ipynb

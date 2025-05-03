@@ -11,19 +11,23 @@ Seonghan Kwon<sup>1,2</sup>
 # Installation
 ```
 git clone https://github.com/2322wednesday/Spiking-NeuLF.git .
-git clone https://github.com/oppo-us-research/NeuLF.git
 conda env create -n spikingNeuLF --file environment.yml
 ```
 
 # How to Run
 ### Quick Demo our SpikingNeuLF(SNN+DNN)
 ```
-cd NeuLF
+python src/demo_snn_rgb.py --exp_name Ollie_d8_w256_0to1 --data_dir dataset/Ollie/ --time_steps 21100
+
+```
+```
+python src/llffProcess.py --data_dir dataset/Ollie --factor 4
+python src/extract_weights.py 
+python src/demo_snn_rgb.py --exp_name Ollie_d8_w256_0to1 --data_dir dataset/Ollie/ --time_steps 21100
 
 ```
 ### Quick Demo NeuLF(DNN)
 ```
-cd NeuLF
 python src/llffProcess.py --data_dir dataset/Ollie --factor 4
 python src/demo_rgb.py --exp_name Ollie_d8_w256 --data_dir dataset/Ollie/
 ```

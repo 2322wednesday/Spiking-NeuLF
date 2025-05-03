@@ -19,13 +19,14 @@
 # SOFTWARE.
 
 import torch
+import torch.nn as nn
 import numpy as np
 import argparse
 import os
 import sys
 sys.path.insert(0, os.path.abspath('./'))
 from NeuLF.src.model import Nerf4D_relu_ps
-from src.snn_model import Spiking_NeuLF_snn, Spiking_NeuLF_ann
+from src.snn_model import Spiking_NeuLF_snn, Spiking_NeuLF_ann, Spiking_NeuLF_snn2ann
 from NeuLF.src.utils import rm_folder, rm_folder_keep
 import cv2,glob
 import torchvision
@@ -46,7 +47,7 @@ parser.add_argument('--gpuid',type=str, default = '0',help='data folder name')
 parser.add_argument('--mlp_depth', type=int, default = 8)
 parser.add_argument('--scale', type=int, default = 4)
 parser.add_argument('--img_form',type=str, default = '.png',help = 'exp name')
-parser.add_argument('--time_steps',type=int, default = 1000,help = 'time steps')
+parser.add_argument('--time_steps',type=int, default = 500,help = 'time steps')
 
 class demo_SN_rgb():
     def __init__(self,args):
@@ -55,22 +56,33 @@ class demo_SN_rgb():
 
         # data_root
         data_root = args.data_dir
-        self.base_model = Nerf4D_relu_ps()
-        self.base_model.eval()
         self.snn_model = Spiking_NeuLF_snn(D=args.mlp_depth, time_steps=args.time_steps)
-        self.ann_model = Spiking_NeuLF_ann(D=args.mlp_depth)
+        #self.snn_model = Spiking_NeuLF_snn2ann(D=args.mlp_depth)
+        self.ann_model = Spiking_NeuLF_ann()
         data_img = os.path.join(args.data_dir,'images_{}'.format(args.scale)) 
 
         self.exp = 'Exp_'+args.exp_name
         self.checkpoints = 'result/'+self.exp+'/checkpoints/'
 
-        self.img_folder_test = 'demo_result_rgb/'+self.exp+'/'
+        self.img_folder_test = 'demo_result_rgb/'+self.exp+'_'+f'{args.time_steps}'+'/'
         rm_folder(self.img_folder_test)
 
-        self.load_check_points_Base2Spiking_NeuLF_weights(self.base_model,self.snn_model,self.ann_model)
+        snn_ckpt_name = f"./{self.checkpoints}/snn_model.pth"
+        ann_ckpt_name = f"./{self.checkpoints}/ann_model.pth"
 
+        print(f"Load weights from {snn_ckpt_name}")
+        snn_ckpt = torch.load(snn_ckpt_name)
+        print(f"Load weights from {ann_ckpt_name}")
+        ann_ckpt = torch.load(ann_ckpt_name)
         self.snn_model = self.snn_model.cuda()
+        self.snn_model.load_state_dict(snn_ckpt, strict=False)
+        with torch.no_grad():
+            for name, module in self.snn_model.named_modules():
+                if isinstance(module, nn.Linear) and module.bias is not None:
+                    module.bias.data /= 21.1
+
         self.ann_model = self.ann_model.cuda()
+        self.ann_model.load_state_dict(ann_ckpt, strict=False)
 
         # height and width
         image_paths = glob.glob(f"{data_img}/*"+args.img_form)
@@ -123,6 +135,7 @@ class demo_SN_rgb():
         num_frame = self.render_pose.shape[0]
 
         with torch.no_grad():
+            cnt = 0
             for i, c2w in enumerate(tqdm(self.render_pose)):
                 ray_o, ray_d = get_rays_np(self.h, self.w, self.intrinsic, c2w)
 
@@ -148,8 +161,10 @@ class demo_SN_rgb():
                 data_uvst = np.concatenate((inter_uv[:,:2],inter_st[:,:2]),1)
 
                 data_uvst = (data_uvst - self.uvst_min)/(self.uvst_max - self.uvst_min)
-                
-                view_unit = self.render_sample_img(time_steps=args.time_steps,snn_model=self.snn_model,ann_model=self.ann_model,uvst=data_uvst,w=self.w,h=self.h,save_path=None,save_flag=False)
+                #data_uvst = np.round((data_uvst - self.uvst_min)/(self.uvst_max - self.uvst_min), 2) #* 2 -1.0
+                save_path = savename + '.png'
+                cnt += 1
+                view_unit = self.render_sample_img(cnt=cnt,snn_model=self.snn_model,ann_model=self.ann_model,uvst=data_uvst,w=self.w,h=self.h,save_path=save_path,save_flag=True)
                 
                 # view_unit_near = 0
                 view_unit_near = self.color_imgs[neighbor_cam_index,:,:,:].copy()
@@ -173,48 +188,20 @@ class demo_SN_rgb():
             imageio.mimsave(savename+".gif", view_group,fps=30)
             imageio.mimsave(savename+"_near.gif", view_group_near,fps=30)
 
-    def render_sample_img(self,time_steps,snn_model,ann_model,uvst, w, h, save_path=None,save_flag=True):
+    def render_sample_img(self,cnt,snn_model,ann_model,uvst, w, h, save_path=None,save_flag=True):
          with torch.no_grad():
         
             uvst = torch.from_numpy(uvst.astype(np.float32)).cuda()
-            spike_uvst = spikegen.rate(uvst, num_steps=time_steps)
 
-            snn_output = snn_model(spike_uvst)
+            snn_output = snn_model(uvst)
             pred_color = ann_model(snn_output)
   
             pred_img = pred_color.reshape((h,w,3)).permute((2,0,1))
 
-            if(save_flag):
+            if(save_flag) & (cnt == 1):
                 torchvision.utils.save_image(pred_img, save_path)
             
             return pred_color.reshape((h,w,3)) #,pred_depth_norm.reshape((h,w,1))
-
-        
-    def load_check_points_Base2Spiking_NeuLF_weights(self, base_model, snn_model, ann_model):
-        ckpt_paths = glob.glob(self.checkpoints+"*.pth")
-        self.iter=0
-        if len(ckpt_paths) > 0:
-            for ckpt_path in ckpt_paths:
-                print(ckpt_path)
-                ckpt_id = int(os.path.basename(ckpt_path).split(".")[0].split("-")[1])
-                self.iter = max(self.iter, ckpt_id)
-            ckpt_name = f"./{self.checkpoints}/nelf-{self.iter}.pth"
-        # ckpt_name = f"{self.checkpoints}nelf-{self.fourier_epoch}.pth"
-        print(f"Load weights from {ckpt_name}")
-        
-        ckpt = torch.load(ckpt_name)
-    
-        base_model.load_state_dict(ckpt)
-        snn_model.input_net.load_state_dict(base_model.input_net.state_dict())
-        snn_model.feature_linear.load_state_dict(base_model.feature_linear.state_dict())
-
-        for i in range(len(base_model.pts_linears)):
-            snn_model.pts_linears[i].load_state_dict(base_model.pts_linears[i].state_dict())
-
-        for i in range(len(base_model.views_linears)):
-            snn_model.views_linears[i].load_state_dict(base_model.views_linears[i].state_dict())
-
-        ann_model.rgb_linear.load_state_dict(base_model.rgb_linear.state_dict())
         
 
 if __name__ == '__main__':
