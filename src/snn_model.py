@@ -3,75 +3,12 @@ from torch.nn.parameter import Parameter
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import math
 import snntorch as snn
 from tqdm import tqdm
-from snntorch import spikegen
 
-
-class Spiking_NeuLF_snn2ann(nn.Module):
-    def __init__(self, D=8, W=256, input_ch=256):
-        """ 
-        """
-        super(Spiking_NeuLF_snn2ann, self).__init__()
-        self.D = D
-        self.W = W
-        self.input_ch = input_ch
-        self.input_ch_views = input_ch
-
-        self.skips = np.arange(4, D, 4)
-        
-        self.pts_linears = nn.ModuleList(
-            [nn.Linear(input_ch, W)] + [nn.Linear(W, W) if i not in self.skips else nn.Linear(W + input_ch, W) for i in range(D-1)])
-        self.L=8
-        self.views_linears = nn.ModuleList([nn.Linear(input_ch, W//2)])
-
-        # if use_viewdirs:
-        self.feature_linear = nn.Linear(W, W)
-
-        self.input_net =  nn.Linear(4, input_ch)
-       
-        self.b = Parameter(torch.normal(mean=0.0, std=3, size=(int(input_ch/2), 4)), requires_grad=False)
-
-        self.input_net_pe =  nn.Linear(self.L*8, input_ch)
-
-    def forward(self, x):
-        max_relu_value = torch.tensor(float('-inf'), device=x.device)
-        scale = 21.1
-        x /= scale
-        input_pts = self.input_net(x)
-
-        input_pts = F.relu(input_pts)
-        input_pts = torch.round(input_pts * 100) / 100
-        max_relu_value = torch.max(max_relu_value, torch.max(input_pts))
-        
-        h = input_pts
-        for i, l in enumerate(self.pts_linears):
-            h = self.pts_linears[i](h)
-            h = F.relu(h)
-            h = torch.round(h * 100) / 100
-            max_relu_value = torch.max(max_relu_value, torch.max(h))
-            if i in self.skips:
-                h = torch.cat([h, input_pts], -1)
-
-        feature = self.feature_linear(h)
-        h = feature
-
-        for i, l in enumerate(self.views_linears):
-            h = self.views_linears[i](h)
-            h = F.relu(h)
-            h = torch.round(h*100) / 100
-            max_relu_value = torch.max(max_relu_value, torch.max(h))
-
-        h *= scale
-        print("Max ReLU output value in forward pass:", max_relu_value.item())
-        print(h)
-        print(h.size())
-
-        return h
 
 class Spiking_NeuLF_snn(nn.Module):
-    def __init__(self, beta=1, time_steps = 1000, D=8, W=256, input_ch=256, rec=False):
+    def __init__(self, beta=1, time_steps = 1000, D=8, W=256, input_ch=256, rec=False, scale = 22):
         """ 
         """
         super(Spiking_NeuLF_snn, self).__init__()
@@ -97,7 +34,8 @@ class Spiking_NeuLF_snn(nn.Module):
         self.input_net_pe =  nn.Linear(self.L*8, input_ch)
 
         self.time_steps = time_steps
-
+        
+        self.lif_spikegen = snn.Leaky(beta=beta)
         self.lif_in = snn.Leaky(beta=beta)
 
         self.lif0 = snn.Leaky(beta=beta)
@@ -126,8 +64,11 @@ class Spiking_NeuLF_snn(nn.Module):
         
         self.spk_view_rec = []
 
+        self.scale = scale
+
     def forward(self, x):
-        
+
+        mem_spikegen = self.lif_spikegen.init_leaky()
         mem_in      = self.lif_in.init_leaky()
         mem0        = self.lif0.init_leaky()
         mem1        = self.lif1.init_leaky()
@@ -140,17 +81,12 @@ class Spiking_NeuLF_snn(nn.Module):
         mem_view    = self.lif_view.init_leaky()
         fire_sum    = 0
 
-        ### Scaling ###
-        scale = 21.1
-        x = x / scale
-        ###############
+        x = x / self.scale
  
         for t in tqdm(range(self.time_steps)):
-            spike_uvst = spikegen.rate(x, num_steps=1)
-            input_pts = self.input_net(spike_uvst[0])
+            x_, mem_spikegen = self.lif_spikegen(x, mem_spikegen)
+            input_pts = self.input_net(x_)
             
-
-            #input_pts = F.relu(input_pts)      # Original Code
             input_pts, mem_in = self.lif_in(input_pts, mem_in)
             if self.rec:
                 self.spk_in_rec.append(input_pts)
@@ -200,9 +136,10 @@ class Spiking_NeuLF_snn(nn.Module):
             for i, l in enumerate(self.views_linears):
                 h = self.views_linears[i](h)
                 h, mem_view = self.lif_view(h, mem_view)
-                fire_sum += h.detach()
                 if self.rec:
                     self.spk_view_rec.append(h)
+            
+            fire_sum += h.detach()
         
         if self.rec:
             spk_in_rec      = torch.stack(self.spk_in_rec)
@@ -218,13 +155,8 @@ class Spiking_NeuLF_snn(nn.Module):
 
         
         fire_rate = fire_sum / self.time_steps
-        print(fire_rate)
 
-        ### Scaling ###
-        fire_rate *= scale
-        print(fire_rate)
-        print(fire_rate.size())
-        ################
+        fire_rate *= self.scale
 
         return fire_rate
 

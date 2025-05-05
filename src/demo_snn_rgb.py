@@ -25,19 +25,16 @@ import argparse
 import os
 import sys
 sys.path.insert(0, os.path.abspath('./'))
-from NeuLF.src.model import Nerf4D_relu_ps
-from src.snn_model import Spiking_NeuLF_snn, Spiking_NeuLF_ann, Spiking_NeuLF_snn2ann
+from src.snn_model import Spiking_NeuLF_snn, Spiking_NeuLF_ann
 from NeuLF.src.utils import rm_folder, rm_folder_keep
 import cv2,glob
 import torchvision
-import math
 from NeuLF.src.cam_view import rayPlaneInter
 from tqdm import tqdm
 from NeuLF.src.utils import eval_uvst
 from NeuLF.src.utils import get_rays_np
 import imageio
 from sklearn.neighbors import NearestNeighbors
-from snntorch import spikegen
 
 parser = argparse.ArgumentParser() # museum,column2
 parser.add_argument('--exp_name',type=str, default = 'Ollie_d8_w256',help = 'exp name')
@@ -53,11 +50,10 @@ class demo_SN_rgb():
     def __init__(self,args):
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpuid
         print('>>> Using GPU: {}'.format(args.gpuid))
-
+        scale = 22
         # data_root
         data_root = args.data_dir
-        self.snn_model = Spiking_NeuLF_snn(D=args.mlp_depth, time_steps=args.time_steps)
-        #self.snn_model = Spiking_NeuLF_snn2ann(D=args.mlp_depth)
+        self.snn_model = Spiking_NeuLF_snn(D=args.mlp_depth, time_steps=args.time_steps, scale=scale)
         self.ann_model = Spiking_NeuLF_ann()
         data_img = os.path.join(args.data_dir,'images_{}'.format(args.scale)) 
 
@@ -79,7 +75,7 @@ class demo_SN_rgb():
         with torch.no_grad():
             for name, module in self.snn_model.named_modules():
                 if isinstance(module, nn.Linear) and module.bias is not None:
-                    module.bias.data /= 21.1
+                    module.bias.data /= scale
 
         self.ann_model = self.ann_model.cuda()
         self.ann_model.load_state_dict(ann_ckpt, strict=False)
@@ -161,7 +157,6 @@ class demo_SN_rgb():
                 data_uvst = np.concatenate((inter_uv[:,:2],inter_st[:,:2]),1)
 
                 data_uvst = (data_uvst - self.uvst_min)/(self.uvst_max - self.uvst_min)
-                #data_uvst = np.round((data_uvst - self.uvst_min)/(self.uvst_max - self.uvst_min), 2) #* 2 -1.0
                 save_path = savename + '.png'
                 cnt += 1
                 view_unit = self.render_sample_img(cnt=cnt,snn_model=self.snn_model,ann_model=self.ann_model,uvst=data_uvst,w=self.w,h=self.h,save_path=save_path,save_flag=True)
