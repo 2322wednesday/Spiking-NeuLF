@@ -9,3 +9,5 @@ dataset/*
 demo_result_rgb/
 result/
 checkout_weight.ipynb
+src/demo_snn_rgb_sim.py
+src/snn_model_sim.py
