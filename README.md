@@ -22,7 +22,7 @@ conda env create -n spikingNeuLF --file environment.yml
 ```
 
 # How to Run
-### Quick Demo our Spiking－NeuLF
+### Quick Demo our Spiking-NeuLF
 It takes about 1 hour 20 minutes based on RTX 3090. (Because of snntorch)
 ```
 python src/llffProcess.py --data_dir dataset/Ollie --factor 4
@@ -34,7 +34,7 @@ python src/demo_snn_rgb.py --exp_name Ollie_d8_w256_0to1 --data_dir dataset/Olli
 
 
 
-### Quick Train and Run our Spiking－NeuLF
+### Quick Train and Run our Spiking-NeuLF
 If you want to proceed with both Training and Inference with our code, use the code below.
 ```
 python src/llffProcess.py --data_dir dataset/Ollie --factor 4
