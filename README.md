@@ -29,8 +29,10 @@ python src/llffProcess.py --data_dir dataset/Ollie --factor 4
 python src/demo_snn_rgb.py --exp_name Ollie_d8_w256_0to1 --data_dir dataset/Ollie/ --time_steps 22000
 ```
 <p align="center">
-  <img src="./img/Spiking-NeuLF_results_img.png" alt="animated" width="480" height="270"/>
+  <img src="./img/Spiking-NeuLF_results_img.png" alt="animated" width="320" height="180"/>
+  <img src="./img/Spiking-NeuLF_results_gif.gif" alt="animated" width="320" height="180"/>
 </p>
+The above example is a gif file made in 10 fps with 30 images.
 
 
 

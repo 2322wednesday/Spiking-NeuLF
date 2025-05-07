@@ -11,3 +11,4 @@ result/
 checkout_weight.ipynb
 src/demo_snn_rgb_sim.py
 src/snn_model_sim.py
+make_gif.py
