@@ -96,7 +96,8 @@ class Spiking_NeuLF_snn(nn.Module):
             input_pts = self.input_net(x_)
             
             input_pts, mem_in = self.lif_in(input_pts, mem_in)
-            counters["in"] = counters["in"] + input_pts.detach()
+            if self.result_print:
+                counters["in"] = counters["in"] + input_pts.detach()
             if self.rec:
                 self.spk_in_rec.append(input_pts)
             
@@ -105,44 +106,50 @@ class Spiking_NeuLF_snn(nn.Module):
                 h = self.pts_linears[i](h)
                 if i == 0:
                     h, mem0 = self.lif0(h, mem0)
-                    counters["0"] = counters["0"] + h.detach()
+                    if self.result_print:
+                        counters["0"] = counters["0"] + h.detach()
                     if self.rec:
                         self.spk0_rec.append(h)
                 elif i == 1:
                     h, mem1 = self.lif1(h, mem1)
-                    counters["1"] = counters["1"] + h.detach()
+                    if self.result_print:
+                        counters["1"] = counters["1"] + h.detach()
                     if self.rec:    
                         self.spk1_rec.append(h)
                 elif i == 2:
                     h, mem2 = self.lif2(h, mem2)
-                    counters["2"] = counters["2"] + h.detach()
+                    if self.result_print:
+                        counters["2"] = counters["2"] + h.detach()
                     if self.rec:    
                         self.spk2_rec.append(h)
                 elif i == 3:
                     h, mem3 = self.lif3(h, mem3)
-                    counters["3"] = counters["3"] + h.detach()
+                    if self.result_print:
+                        counters["3"] = counters["3"] + h.detach()
                     if self.rec:    
                         self.spk3_rec.append(h)
                 elif i == 4:
                     h, mem4 = self.lif4(h, mem4)
-                    counters["4"] = counters["4"] + h.detach()
+                    if self.result_print:
+                        counters["4"] = counters["4"] + h.detach()
                     if self.rec:    
                         self.spk4_rec.append(h)
                 elif i == 5:
                     h, mem5 = self.lif5(h, mem5)
-                    print(h.shape)
-                    counters["5"] = counters["5"] + h.detach()
+                    if self.result_print:
+                        counters["5"] = counters["5"] + h.detach()
                     if self.rec:    
                         self.spk5_rec.append(h)
                 elif i == 6:
                     h, mem6 = self.lif6(h, mem6)
-                    #print(h.shape)
-                    counters["6"] = counters["6"] + h.detach()
+                    if self.result_print:
+                        counters["6"] = counters["6"] + h.detach()
                     if self.rec:    
                         self.spk6_rec.append(h)
                 elif i == 7:
                     h, mem7 = self.lif7(h, mem7)
-                    counters["7"] = counters["7"] + h.detach()
+                    if self.result_print:
+                        counters["7"] = counters["7"] + h.detach()
                     if self.rec:    
                         self.spk7_rec.append(h)
 
@@ -155,7 +162,8 @@ class Spiking_NeuLF_snn(nn.Module):
             for i, l in enumerate(self.views_linears):
                 h = self.views_linears[i](h)
                 h, mem_view = self.lif_view(h, mem_view)
-                counters["view"] = counters["view"] + h.detach()
+                if self.result_print:
+                    counters["view"] = counters["view"] + h.detach()
                 if self.rec:
                     self.spk_view_rec.append(h)
             
