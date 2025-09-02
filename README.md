@@ -1,6 +1,10 @@
 # Spiking-NeuLF: A Low-Power Spiking Neural Light Field Model for Efficient View Synthesis
-Seonghan Kwon<sup>1</sup>, Hakyeong Lee<sup>1</sup>,   
-<sup>1</sup>Seoul National University of Science and Technology
+Seonghan Kwon<sup>1,&dagger;</sup>, Hakyeong Lee<sup>1,&dagger;</sup>, Hyunmin Jung<sup>2</sup>  
+<sup>1</sup>Department of Electronic and IT Media Engineering, Seoul National University of Science and Technology  
+<sup>2</sup>Department of Smart ICT Convergence Engineering, Seoul National University of Science and Technology
+
+(&dagger;) S Kwon and H Lee equally contributed.
+
 
 <p align="center">
   <img src='img/Spiking-NeuLF.png' width="750"/>
@@ -23,7 +27,7 @@ conda env create -n spikingNeuLF --file environment.yml
 
 # How to Run
 ### Quick Demo our Spiking-NeuLF
-It takes about 1 hour 20 minutes based on RTX 3090. (Because of snntorch)
+It takes about 1 hour 20 minutes based on NVIDIA RTX A6000. (Because of snntorch)
 ```
 python src/llffProcess.py --data_dir dataset/Ollie --factor 4
 python src/demo_snn_rgb.py --exp_name Ollie_d8_w256_0to1 --data_dir dataset/Ollie/ --time_steps 22000

@@ -45,6 +45,7 @@ parser.add_argument('--mlp_depth', type=int, default = 8)
 parser.add_argument('--scale', type=int, default = 4)
 parser.add_argument('--img_form',type=str, default = '.png',help = 'exp name')
 parser.add_argument('--time_steps',type=int, default = 500,help = 'time steps')
+parser.add_argument('--rec',type=bool, default = False,help = 'Record data')
 
 class demo_SN_rgb():
     def __init__(self,args):
@@ -53,7 +54,8 @@ class demo_SN_rgb():
         scale = 22
         # data_root
         data_root = args.data_dir
-        self.snn_model = Spiking_NeuLF_snn(D=args.mlp_depth, time_steps=args.time_steps, scale=scale)
+        rec = args.rec
+        self.snn_model = Spiking_NeuLF_snn(D=args.mlp_depth, time_steps=args.time_steps, scale=scale, rec=rec)
         self.ann_model = Spiking_NeuLF_ann()
         data_img = os.path.join(args.data_dir,'images_{}'.format(args.scale)) 
 
