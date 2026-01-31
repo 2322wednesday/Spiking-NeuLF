@@ -1,4 +1,7 @@
 # Spiking-NeuLF: A Low-Power Spiking Neural Light Field Model for Efficient View Synthesis
+
+## (2026.02) Received Grand Prize (1st Place) in Capstone Design Project at SEOULTECH.
+
 Seonghan Kwon<sup>1,&dagger;</sup>, Hakyeong Lee<sup>1,&dagger;</sup>, Hyunmin Jung<sup>2</sup>  
 <sup>1</sup>Department of Electronic and IT Media Engineering, Seoul National University of Science and Technology  
 <sup>2</sup>Department of Smart ICT Convergence Engineering, Seoul National University of Science and Technology
